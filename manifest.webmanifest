@@ -1,0 +1,33 @@
+{
+  "id": "./",
+  "name": "捕捉鱼头 · 青头湾夜班日记",
+  "short_name": "捕捉鱼头",
+  "description": "一键放钩，快乐上头。八关绿色鱼头冒险，手机电脑都能玩。",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f5ed",
+  "theme_color": "#113e3b",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
+

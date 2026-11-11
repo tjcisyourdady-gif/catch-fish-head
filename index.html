@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#113e3b">
+  <meta name="description" content="点一下放钩，把不想上班的绿色鱼头捞回来！8 个剧情关卡、鱼头大王、装备升级，手机电脑都能玩。">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="捕捉鱼头">
+  <meta property="og:title" content="捕捉鱼头 · 一键放钩，快乐上头">
+  <meta property="og:description" content="绿色鱼头集体出逃！八关冒险，点开就能玩。">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="icon-512.png">
+  <title>捕捉鱼头 · 青头湾夜班日记</title>
+  <link rel="icon" href="fish-head.ico">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="mobile.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <button class="brand" id="homeButton" aria-label="返回主页"><span class="brand-icon"><img src="fish-head.png" alt=""></span><span>捕捉鱼头<small>FISH HEAD CLUB</small></span></button>
+      <div class="header-note"><span class="live-dot"></span>青头湾 · 夜班打捞计划</div>
+      <div class="header-actions"><span class="wallet" title="通关获得鱼币，可用于升级装备"><span>◈</span> <b id="wallet">0</b><small>鱼币</small></span><button id="soundButton" class="icon-button" title="切换音效" aria-label="关闭音效">♫</button><button id="helpButton" class="icon-button" title="玩法说明" aria-label="玩法说明">?</button></div>
+    </header>
+
+    <main>
+      <section class="dashboard" aria-label="关卡信息">
+        <div class="level-title"><span class="eyebrow" id="levelEyebrow">NIGHT SHIFT / 01</span><h1 id="levelName">新手码头 <span>FIRST CATCH</span></h1></div>
+        <div class="score-panel"><div><span>本关收获</span><b id="score">0 <small>/ 450</small></b></div><div class="progress-track"><i id="progress"></i></div></div>
+        <div class="timer"><span class="clock-icon">◷</span><div><small>剩余时间</small><strong id="timer">65<span>s</span></strong></div></div>
+        <button class="pause-button" id="pauseButton" disabled>Ⅱ <span>暂停</span></button>
+      </section>
+
+      <section class="game-shell" aria-label="捕捉鱼头游戏场景">
+        <canvas id="game" width="1200" height="650" tabindex="0" aria-label="游戏区域。空格或向下键放钩，B 松钩，P 暂停。"></canvas>
+        <div class="water-badge"><span></span><span id="sceneLabel">青头湾 / 水深 3 m</span></div>
+        <div class="scene-caption" id="sceneCaption">一场关于鱼头、自由和夜班的冒险。</div>
+        <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+        <section id="homeScreen" class="home-screen">
+          <div class="home-copy"><span class="pill">一键放钩 · 快乐上头</span><p class="home-kicker">欢迎来到青头湾</p><h2>捕捉<span>鱼头<span class="title-dot">。</span></span></h2><p class="home-description">鱼头套集体出逃了。<br>拿起抓钩，把这群不想上班的家伙捞回来。</p><div class="home-buttons"><button class="primary-button" id="startButton">开始打捞 <span>↗</span></button><button class="glass-button" id="levelButton">关卡地图</button></div><p class="home-hint">点击开始打捞，抓住一点快乐</p></div>
+          <div class="hero-art" aria-hidden="true"><div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div><div class="hero-tag tag-top">稀有物种 / 打工鱼头</div><img class="hero-fish" src="fish-head.png" alt=""><div class="hero-speech">“不想上班，去当鱼了。”</div><span class="hero-spark spark-one">✦</span><span class="hero-spark spark-two">✦</span><div class="hero-tag tag-bottom"><i></i> 今日出逃：一整箱</div></div>
+          <div class="home-bottom"><span>01 — 08 / 八站奇遇</span><span>OFFLINE ARCADE · 随时开捞</span></div>
+        </section>
+
+        <div id="modalLayer" class="modal-layer" hidden><section id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1"></section></div>
+      </section>
+
+      <section class="controls-bar" aria-label="游戏操作">
+        <div class="control-tips"><span><kbd>空格</kbd> / <kbd>↓</kbd> 放钩</span><span><kbd>B</kbd> 松钩</span><span><kbd>P</kbd> 暂停</span></div>
+        <div class="tools"><button id="releaseButton" disabled><span>✂</span> 松钩器 <b id="releaseCount">2</b></button><button id="freezeButton" disabled><span>❄</span> 冻结时间 <b id="freezeCount">1</b></button><button class="drop-button" id="dropButton" disabled>放下抓钩 <span>↓</span></button></div>
+      </section>
+      <section class="footer-strip"><div class="collection"><span class="footer-label">今日捕捉对象</span><span><img src="fish-head.png" alt="">小鱼头 <b>80</b></span><span><img src="fish-head.png" alt="">大鱼头 <b>180</b></span><span class="rare-legend">✦ 发光鱼头 <b>350</b></span><span class="rock-legend">◆ 石头 <b>15</b></span></div><button class="text-button" id="shopButton">装备小铺 <span>↗</span></button></section>
+    </main>
+    <div class="mobile-note">↻ 横过手机，海面更开阔 · 点击水面就能放钩</div>
+    <nav class="share-bar" aria-label="分享与安装"><span id="offlineStatus" role="status">点开就能玩</span><div><button id="installButton">添加到主屏幕</button><button id="shareButton">分享游戏 ↗</button></div></nav>
+    <footer class="page-footer"><span>保持冷静，愿者上钩。</span><span id="saveStatus">进度自动保存在本机 <span>●</span></span></footer>
+  </div>
+  <dialog id="installDialog" class="install-dialog" aria-labelledby="installTitle"><h2 id="installTitle">把鱼头带回主屏幕</h2><p>iPhone / iPad：在 <b>Safari</b> 打开本页，点<b>分享 → 添加到主屏幕</b>；如果出现“作为网页 App 打开”，将它开启。</p><p>安卓：在浏览器菜单中选择<b>安装应用</b>或<b>添加到主屏幕</b>。</p><p>等下方提示“已可离线游玩”后，就可以断网开捞。清理浏览器数据可能移除缓存和存档，手机与电脑的进度各自保存。</p><button id="closeInstall" class="primary-button">知道了</button></dialog>
+  <script src="engine.js"></script>
+  <script src="game.js"></script>
+  <script src="pwa.js"></script>
+</body>
+</html>
+
