@@ -1,12 +1,13 @@
 'use strict';
 const CACHE_PREFIX = 'fish-head:' + new URL('./', self.location.href).pathname + ':';
-const CACHE = CACHE_PREFIX + 'v1';
+const CACHE = CACHE_PREFIX + 'v2-challenges';
 const FILES = ['./', './index.html', './style.css', './mobile.css', './engine.js', './game.js', './pwa.js', './manifest.webmanifest', './fish-head.png', './fish-head.ico', './icon-192.png', './icon-512.png', './icon-maskable.png', './apple-touch-icon.png'];
 const ROOT = new URL('./', self.location.href);
 const knownPaths = new Set(FILES.map(file => new URL(file, ROOT).pathname));
 self.addEventListener('install', event => {
-  // Do not activate a half-cached release or replace a running game mid-session.
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)));
+  // Fetch the complete release before activation. Existing JS keeps running;
+  // the new cache takes effect on the player's next navigation, without reload.
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES.map(file => new Request(file, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {

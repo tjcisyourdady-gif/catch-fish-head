@@ -8,8 +8,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="捕捉鱼头">
-  <meta property="og:title" content="捕捉鱼头 · 一键放钩，快乐上头">
-  <meta property="og:description" content="绿色鱼头集体出逃！八关冒险，点开就能玩。">
+  <meta property="og:title" content="捕捉鱼头 · 八种玩法，八站奇遇">
+  <meta property="og:description" content="寻宝、闸门、避电、救援与三阶段大王，八种玩法等你挑战。">
   <meta property="og:type" content="website">
   <meta property="og:image" content="icon-512.png">
   <title>捕捉鱼头 · 青头湾夜班日记</title>
@@ -35,6 +35,8 @@
         <button class="pause-button" id="pauseButton" disabled>Ⅱ <span>暂停</span></button>
       </section>
 
+      <section id="missionStrip" class="mission-strip" aria-label="本关委托"><b id="missionLabel">分拣委托</b><span id="missionProgress" role="status" aria-live="polite">小鱼头 0/3 · 大鱼头 0/2</span></section>
+
       <section class="game-shell" aria-label="捕捉鱼头游戏场景">
         <canvas id="game" width="1200" height="650" tabindex="0" aria-label="游戏区域。空格或向下键放钩，B 松钩，P 暂停。"></canvas>
         <div class="water-badge"><span></span><span id="sceneLabel">青头湾 / 水深 3 m</span></div>
@@ -42,7 +44,7 @@
         <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
         <section id="homeScreen" class="home-screen">
-          <div class="home-copy"><span class="pill">一键放钩 · 快乐上头</span><p class="home-kicker">欢迎来到青头湾</p><h2>捕捉<span>鱼头<span class="title-dot">。</span></span></h2><p class="home-description">鱼头套集体出逃了。<br>拿起抓钩，把这群不想上班的家伙捞回来。</p><div class="home-buttons"><button class="primary-button" id="startButton">开始打捞 <span>↗</span></button><button class="glass-button" id="levelButton">关卡地图</button></div><p class="home-hint">点击开始打捞，抓住一点快乐</p></div>
+          <div class="home-copy"><span class="pill">八种玩法 · 冒险升级</span><p class="home-kicker">欢迎来到青头湾</p><h2>捕捉<span>鱼头<span class="title-dot">。</span></span></h2><p class="home-description">鱼头套集体出逃了。<br>拿起抓钩，把这群不想上班的家伙捞回来。</p><div class="home-buttons"><button class="primary-button" id="startButton">开始打捞 <span>↗</span></button><button class="glass-button" id="levelButton">关卡地图</button></div><p class="home-hint">点击开始打捞，抓住一点快乐</p></div>
           <div class="hero-art" aria-hidden="true"><div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div><div class="hero-tag tag-top">稀有物种 / 打工鱼头</div><img class="hero-fish" src="fish-head.png" alt=""><div class="hero-speech">“不想上班，去当鱼了。”</div><span class="hero-spark spark-one">✦</span><span class="hero-spark spark-two">✦</span><div class="hero-tag tag-bottom"><i></i> 今日出逃：一整箱</div></div>
           <div class="home-bottom"><span>01 — 08 / 八站奇遇</span><span>OFFLINE ARCADE · 随时开捞</span></div>
         </section>

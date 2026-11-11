@@ -3,8 +3,10 @@
   const status = document.getElementById('offlineStatus');
   const installButton = document.getElementById('installButton');
   const dialog = document.getElementById('installDialog');
-  let installPrompt = null, offlineReady = false, shareTimer;
-  function refreshStatus() { status.textContent = offlineReady ? navigator.onLine ? '✓ 已可离线游玩' : '✓ 离线游玩中' : navigator.onLine ? '点开就能玩' : '当前离线，请联网加载素材'; }
+  let installPrompt = null, offlineReady = false, updateReady = false, shareTimer;
+  const hadController = !!navigator.serviceWorker?.controller;
+  navigator.serviceWorker?.addEventListener('controllerchange', () => { if (hadController) { updateReady = true; refreshStatus(); } });
+  function refreshStatus() { status.textContent = updateReady ? '新版已就绪 · 刷新页面更新' : offlineReady ? navigator.onLine ? '✓ 冒险升级版 · 已可离线游玩' : '✓ 离线游玩中' : navigator.onLine ? '冒险升级版 · 点开就能玩' : '当前离线，请联网加载素材'; }
   function pauseGame() { document.dispatchEvent(new CustomEvent('fish:pause')); }
   window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installPrompt = event; installButton.textContent = '安装到桌面'; });
   installButton.addEventListener('click', async () => {
@@ -19,7 +21,7 @@
     pauseGame();
     const url = new URL('./', location.href).href;
     try {
-      if (navigator.share) await navigator.share({ title: '捕捉鱼头', text: '绿色鱼头集体出逃！点开一起放钩，挑战八关鱼头冒险。', url });
+      if (navigator.share) await navigator.share({ title: '捕捉鱼头', text: '寻宝、闸门、避电、救援！八种玩法，最后挑战三阶段鱼头大王。', url });
       else if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(url); status.textContent = '链接已复制，发给朋友吧'; clearTimeout(shareTimer); shareTimer = setTimeout(refreshStatus, 3500); }
       else window.prompt('复制这个链接，发给朋友一起玩：', url);
     } catch (error) { if (error.name !== 'AbortError') { status.textContent = '可复制浏览器地址分享'; clearTimeout(shareTimer); shareTimer = setTimeout(refreshStatus, 3500); } }

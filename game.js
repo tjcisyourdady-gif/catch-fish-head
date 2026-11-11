@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const { Engine, LEVELS, UPGRADES, W, H, PIVOT, rng, clamp } = FishGame;
+  const { Engine, LEVELS, TYPES, UPGRADES, W, H, PIVOT, rng, clamp } = FishGame;
   const $ = id => document.getElementById(id);
   const canvas = $('game'), ctx = canvas.getContext('2d', { alpha: false });
   const fish = new Image(); fish.src = 'fish-head.png';
@@ -53,12 +53,20 @@
     if (e.type === 'hooked') { particles(e.x, e.y, e.item.type === 'rock' ? '#adbcaf' : '#d8ef93', 10); if (e.item.type === 'rock') toast('是石头！点击松钩器，可以省点时间。'); }
     if (e.type === 'miss') fx.push({ type: 'text', text: '差一点…', x: e.x, y: Math.min(H - 55, e.y), life: 1.1, total: 1.1, color: '#c0d5c6', vy: -20 });
     if (e.type === 'release') { particles(e.x, e.y, '#bcddd1', 14); toast('已松钩，抓钩快速回收'); }
-    if (e.type === 'freeze') toast('时间冻结！接下来 6 秒尽情打捞 ❄');
+    if (e.type === 'freeze') toast('冻结 6 秒：鱼群、机关、海流和倒计时全部停下 ❄');
+    if (e.type === 'obstacle') { sound('release'); particles(e.x, e.y, '#efa99a', 20); toast(e.reason + (e.penalty ? ' · −' + e.penalty + ' 秒' : '')); }
+    if (e.type === 'wrongOrder') { sound('release'); toast('抓错啦！已放生 · −2 秒。下一只要：' + e.wanted); }
+    if (e.type === 'bossPhase') { sound('win'); particles(e.x, e.y, '#ffe18a', 45); toast('王冠碎了！等大王停下、绿环亮起，再抓一钩。', 4); }
     if (e.type === 'collect') {
       sound(e.item.type === 'rock' ? 'release' : 'collect'); particles(PIVOT.x, 173, '#dcf58c', 24);
       fx.push({ type: 'text', text: '+' + e.points + (e.combo > 1 ? '  连击 ×' + e.combo : ''), x: PIVOT.x, y: 207, life: 1.6, total: 1.6, color: '#efffc0', vy: -25 });
       if (e.item.type === 'king') toast('鱼头大王已就位！把诉求一起带回去。');
-      else if (engine.config.boss && engine.score >= engine.config.target && !engine.kingCaught) toast('分数达标了，还需要抓回戴王冠的大王！');
+      else if (e.item.type === 'key') toast(engine.counts.key >= 2 ? '两把钥匙到手！海底宝箱已打开。' : '钥匙 +1，再找一把！');
+      else if (e.item.type === 'chest') toast('创业资金到手！宝箱已带回。');
+      else if (e.item.type === 'oxygen') toast('氧气补充！剩余时间 +6 秒');
+      else if (e.item.type === 'rare' && engine.config.boss && engine.counts.rare === 2) toast('大王的护盾消失了！下一步：打碎王冠。', 4);
+      else if (e.item.type === 'rare' && engine.config.night) toast('发光鱼头照亮夜海 · 持续 5 秒');
+      else if (engine.score >= engine.config.target && !engine.goalComplete()) toast('分数够了，继续完成委托：' + engine.missionText());
     }
     if (e.type === 'finish') { persist(); sound(e.won ? 'win' : 'lose'); if (e.won) particles(600, 210, '#dbef96', 65); showResult(); }
     if (e.type === 'purchase') { persist(); updateHUD(); }
@@ -81,7 +89,11 @@
     $('freezeButton').disabled = !playing || engine.freezes === 0;
     $('shopButton').disabled = engine.status === 'playing' || engine.status === 'paused';
     $('sceneLabel').textContent = '青头湾 / 水深 ' + l.depth + ' m';
-    $('sceneCaption').textContent = engine.config.boss && view === 'play' ? (engine.kingCaught ? '♛ 已抓回鱼头大王 · 继续达到目标分数' : '♛ 本关目标：达到 2200 分，并抓回鱼头大王') : l.caption;
+    $('sceneCaption').textContent = view === 'play' ? engine.environmentText() : l.caption;
+    $('missionLabel').textContent = l.mode;
+    const mission = engine.missionText();
+    if ($('missionProgress').textContent !== mission) $('missionProgress').textContent = mission;
+    $('missionStrip').classList.toggle('complete', engine.goalComplete());
     $('soundButton').textContent = engine.save.sound ? '♫' : '♪';
     $('soundButton').style.opacity = engine.save.sound ? '1' : '.45';
     $('soundButton').setAttribute('aria-label', engine.save.sound ? '关闭音效' : '开启音效');
@@ -105,7 +117,7 @@
     if (index >= engine.save.unlocked) return;
     engine.start(index); fx = []; $('homeScreen').hidden = true;
     const l = engine.config;
-    openModal('story', `<img class="modal-fish" src="fish-head.png" alt="绿色鱼头"><span class="eyebrow">第 ${String(index + 1).padStart(2, '0')} 站 / 共 08 站</span><h2 id="modalTitle">${l.name}</h2><p>${l.story}</p><div class="dialogue"><div class="speaker">${l.speaker}</div><p>“${l.line}”</p></div><div class="briefing-stats"><div>本关目标<strong>${l.target} 分</strong></div><div>打捞时间<strong>${Math.ceil(engine.time)} 秒</strong></div><div>${l.boss ? '特别任务' : '免费补给'}<strong class="supply">${l.boss ? '抓回大王' : '2 ✂ + 1 ❄'}</strong></div></div><p class="subtle">${l.tip}</p><div class="modal-actions"><button id="beginLevel" class="primary-button">准备好了，放我下海 ↗</button><button id="storyBack" class="secondary-button">返回地图</button></div>`);
+    openModal('story', `<img class="modal-fish" src="fish-head.png" alt="绿色鱼头"><span class="eyebrow">第 ${String(index + 1).padStart(2, '0')} 站 / ${l.mode}</span><h2 id="modalTitle">${l.name}</h2><p>${l.story}</p><div class="dialogue"><div class="speaker">${l.speaker}</div><p>“${l.line}”</p></div><div class="briefing-stats"><div>本关目标<strong>${l.target} 分</strong></div><div>打捞时间<strong>${Math.ceil(engine.time)} 秒</strong></div><div>${l.boss ? '特别任务' : '免费补给'}<strong class="supply">${l.boss ? '抓回大王' : '2 ✂ + 1 ❄'}</strong></div></div><div class="mission-brief"><b>这一关怎么玩</b><p>${l.rule}</p><strong>${engine.missionText()}</strong></div><p class="subtle">${l.tip}</p><div class="modal-actions"><button id="beginLevel" class="primary-button">准备好了，放我下海 ↗</button><button id="storyBack" class="secondary-button">返回地图</button></div>`);
     bind('beginLevel', () => { closeModal(); view = 'play'; engine.begin(); updateHUD(); canvas.focus({ preventScroll: true }); });
     bind('storyBack', () => showMap());
   }
@@ -119,15 +131,15 @@
     const r = engine.result, final = engine.level === 7;
     if (!r) return;
     const heading = r.won ? final ? '大王，请随我回馆。' : '这波，满载而归。' : '鱼头还想再玩一会儿。';
-    const message = r.won ? final ? '一场“鱼头出逃事件”，终于变成了双方都满意的谈判。' : ['馆长：干得漂亮！夜宵给你加个蛋。', '鱼头：下次团建，我们一定先请假。', '打捞记录 +1。再深一点，还有更多奇遇。'][engine.level % 3] : engine.config.boss && r.score >= engine.config.target && !r.kingCaught ? '分数已经够了，但鱼头大王还没有上钩。下一次记得留时间抓大王。' : '没关系，这一关可以重新挑战。优先抓发光鱼头，碰到石头就松钩。';
-    openModal('result', `<span class="eyebrow">${r.won ? 'SHIFT COMPLETE / 打捞成功' : 'TRY AGAIN / 再来一钩'}</span><h2 id="modalTitle">${heading}</h2>${r.won ? `<div class="stars" aria-label="${r.stars} 星">${'★'.repeat(r.stars)}${'☆'.repeat(3 - r.stars)}</div>` : ''}<p>${message}</p><div class="briefing-stats"><div>本关得分<strong>${r.score}</strong></div><div>捕捉鱼头<strong>${r.catches} 只</strong></div><div>剩余时间<strong>${Math.ceil(r.time)} 秒</strong></div></div>${r.won ? `<div class="reward-line">◈ 获得 ${r.reward} 鱼币 · 去小铺升级，让下一钩更轻松</div>` : ''}<div class="modal-actions"><button id="nextResult" class="primary-button">${r.won ? final ? '看看结局 ↗' : '前往下一站 ↗' : '再试一次 ↗'}</button>${r.won ? '<button id="resultShop" class="secondary-button">装备小铺</button>' : ''}<button id="resultMap" class="secondary-button">关卡地图</button></div>`);
+    const message = !r.won && !r.goalComplete ? '还差委托：' + r.mission + '。' + engine.config.tip : r.won ? final ? '一场“鱼头出逃事件”，终于变成了双方都满意的谈判。' : ['馆长：干得漂亮！夜宵给你加个蛋。', '鱼头：下次团建，我们一定先请假。', '打捞记录 +1。再深一点，还有更多奇遇。'][engine.level % 3] : engine.config.boss && r.score >= engine.config.target && !r.kingCaught ? '分数已经够了，但鱼头大王还没有上钩。下一次记得留时间抓大王。' : '没关系，这一关可以重新挑战。优先抓发光鱼头，碰到石头就松钩。';
+    openModal('result', `<span class="eyebrow">${r.won ? 'SHIFT COMPLETE / 打捞成功' : 'TRY AGAIN / 再来一钩'}</span><h2 id="modalTitle">${heading}</h2>${r.won ? `<div class="stars" aria-label="${r.stars} 星">${'★'.repeat(r.stars)}${'☆'.repeat(3 - r.stars)}</div>` : ''}<p>${message}</p><div class="briefing-stats"><div>本关得分<strong>${r.score}</strong></div><div>捕捉鱼头<strong>${r.catches} 只</strong></div><div>剩余时间<strong>${Math.ceil(r.time)} 秒</strong></div></div>${r.won ? `<div class="reward-line">◈ 获得 ${r.reward} 鱼币 · 去小铺升级，让下一钩更轻松</div>` : ''}<p class="subtle">命中率 ${Math.round(r.accuracy * 100)}% · 最高连击 ${r.peakCombo} · 失误 ${r.mistakes} 次<br>三星：余时 ≥18秒、命中率 ≥75%、失误 ≤1次</p><div class="modal-actions"><button id="nextResult" class="primary-button">${r.won ? final ? '看看结局 ↗' : '前往下一站 ↗' : '再试一次 ↗'}</button>${r.won ? '<button id="resultShop" class="secondary-button">装备小铺</button>' : ''}<button id="resultMap" class="secondary-button">关卡地图</button></div>`);
     bind('nextResult', () => r.won ? final ? ending() : briefing(engine.level + 1) : briefing(engine.level));
     if (r.won) bind('resultShop', () => shop(showResult));
     bind('resultMap', () => showMap());
   }
   function showMap() {
     if (engine.status === 'playing') return;
-    openModal('map', `<span class="eyebrow">THE NIGHT SHIFT ROUTE</span><h2 id="modalTitle">八站奇遇，一钩一头。</h2><p>从码头出发，去深海找回那群不想上班的鱼头。</p><div class="map-grid">${LEVELS.map((l, i) => `<button class="map-card ${i === engine.save.unlocked - 1 ? 'current' : ''}" data-level="${i}" ${i >= engine.save.unlocked ? 'disabled' : ''}><span class="number">${String(i + 1).padStart(2, '0')}</span><strong>${l.name}</strong><small>${i >= engine.save.unlocked ? '尚未解锁' : engine.save.stars[i] ? '★'.repeat(engine.save.stars[i]) + '☆'.repeat(3 - engine.save.stars[i]) : '等待打捞 ↗'}</small></button>`).join('')}</div><div class="modal-actions"><button id="mapHome" class="secondary-button">返回主页</button><button id="mapShop" class="secondary-button">装备小铺 · ${engine.save.wallet} 鱼币</button>${engine.save.completed ? '<button id="mapEnding" class="secondary-button">回看结局</button>' : ''}</div>`, true);
+    openModal('map', `<span class="eyebrow">THE NIGHT SHIFT ROUTE</span><h2 id="modalTitle">八种玩法，八站奇遇。</h2><p>分拣、追逐、寻宝、闸门、避电、救援、点单，最后挑战三阶段大王。</p><div class="map-grid">${LEVELS.map((l, i) => `<button class="map-card ${i === engine.save.unlocked - 1 ? 'current' : ''}" data-level="${i}" ${i >= engine.save.unlocked ? 'disabled' : ''}><span class="number">${String(i + 1).padStart(2, '0')}</span><strong>${l.name}</strong><span class="map-mode">${l.mode}</span><small>${i >= engine.save.unlocked ? '尚未解锁' : engine.save.stars[i] ? '★'.repeat(engine.save.stars[i]) + '☆'.repeat(3 - engine.save.stars[i]) : '等待打捞 ↗'}</small></button>`).join('')}</div><div class="modal-actions"><button id="mapHome" class="secondary-button">返回主页</button><button id="mapShop" class="secondary-button">装备小铺 · ${engine.save.wallet} 鱼币</button>${engine.save.completed ? '<button id="mapEnding" class="secondary-button">回看结局</button>' : ''}</div>`, true);
     document.querySelectorAll('[data-level]').forEach(btn => btn.addEventListener('click', () => { unlockAudio(); briefing(Number(btn.dataset.level)); }));
     bind('mapHome', home); bind('mapShop', () => shop(showMap)); if (engine.save.completed) bind('mapEnding', ending);
   }
@@ -148,7 +160,7 @@
     if (engine.status === 'playing') engine.pause();
     const returns = { home, story: () => briefing(engine.level), pause: () => { view = 'play'; engine.resume(); pause(); }, result: showResult, map: showMap, ending, shop: () => shop(modalBack || home), play: resume };
     const back = returns[previous] || home;
-    openModal('help', `<span class="eyebrow">HOW TO CATCH A HEAD</span><h2 id="modalTitle">玩法很简单，时机很重要。</h2><div class="help-grid"><div><b>① 看准，放钩</b><span>抓钩自动左右摆动。按空格、↓ 或点击游戏水面，沿当前方向发射。</span></div><div><b>② 抓到，收回</b><span>碰到目标后自动回收，拉上岸才计分。小鱼头快，大鱼头重。</span></div><div><b>③ 善用小道具</b><span>B 松钩，甩掉误抓的目标；F 冻结倒计时 6 秒。每关免费补充。</span></div><div><b>④ 达标，下一站</b><span>倒计时结束前达标即可过关。第 8 关还需抓回大王。P 或 Esc 暂停。</span></div></div><p>连着 9 秒内捞回鱼头可触发连击，最多加成 30%。剩余时间越多，星级越高。切换窗口会自动暂停。</p><div class="modal-actions"><button id="helpBack" class="primary-button">明白了，开捞 ↗</button></div>`);
+    openModal('help', `<span class="eyebrow">HOW TO CATCH A HEAD</span><h2 id="modalTitle">玩法很简单，时机很重要。</h2><div class="help-grid"><div><b>① 看准，放钩</b><span>抓钩自动左右摆动。按空格、↓ 或点击游戏水面，沿当前方向发射。</span></div><div><b>② 抓到，收回</b><span>碰到目标后自动回收，拉上岸才计分。小鱼头快，大鱼头重。</span></div><div><b>③ 善用小道具</b><span>B 松钩，甩掉误抓的目标；F 冻结时间、鱼群、海流和机关 6 秒。每关免费补充。</span></div><div><b>④ 达标，下一站</b><span>分数和上方委托都要完成。每关有独立规则；大王要先破盾、破冠再捕捉。P 或 Esc 暂停。</span></div></div><p>连着 9 秒内捞回鱼头可触发连击，最多加成 30%。三星还需要准确出钩、少撞机关。重试时普通鱼群会重新分布。切换窗口会自动暂停。</p><div class="modal-actions"><button id="helpBack" class="primary-button">明白了，开捞 ↗</button></div>`);
     bind('helpBack', back);
   }
   function fire() { unlockAudio(); if (view === 'play') engine.fire(); }
@@ -277,6 +289,22 @@
     if (!n.active && !caught) return;
     const x = caught ? engine.hook.x : n.x, y = caught ? engine.hook.y + n.r * .5 : n.y;
     ctx.save(); ctx.translate(x, y);
+    if (engine.config.night && !engine.illuminated && !caught && !['rare', 'king'].includes(n.type)) ctx.globalAlpha = .48;
+    if (['key', 'chest', 'oxygen'].includes(n.type)) {
+      if (n.type === 'key') {
+        ctx.strokeStyle = '#ffe59a'; ctx.lineWidth = 7; ctx.beginPath(); ctx.arc(-10, -8, 12, 0, Math.PI * 2); ctx.moveTo(0, 0); ctx.lineTo(19, 19); ctx.lineTo(26, 12); ctx.moveTo(11, 11); ctx.lineTo(18, 4); ctx.stroke();
+      } else if (n.type === 'chest') {
+        const unlocked = (engine.counts.key || 0) >= 2;
+        roundRect(-37, -25, 74, 52, 8, unlocked ? '#bf9452' : '#716f59', '#e4c57f');
+        roundRect(-37, -25, 74, 17, 7, unlocked ? '#e1bd70' : '#938e67');
+        roundRect(-5, -4, 10, 16, 3, '#fff1b5');
+        text(unlocked ? '已解锁' : '2 把钥匙', 0, 50, 13, '#ffe8ac');
+      } else {
+        roundRect(-15, -25, 30, 50, 8, '#afdcd5', '#e0fff0'); roundRect(-7, -32, 14, 10, 2, '#e5d8a3');
+        text('O₂', 0, 5, 17, '#285c62', 'center', 700); text('+6秒', 0, 44, 13, '#baf4eb');
+      }
+      ctx.restore(); return;
+    }
     if (n.type === 'rock') {
       ctx.rotate(n.phase * .4); path([[-n.r * .9, 9], [-n.r * .7, -20], [-2, -28], [23, -15], [30, 9], [12, 25], [-19, 22]], '#7d9286', '#b3c2a64d', 1.5);
       path([[-22, -13], [-2, -24], [15, -12], [-6, -4]], '#9bad97'); path([[-5, -2], [23, 0], [10, 19], [-18, 18]], '#697e76');
@@ -284,6 +312,12 @@
     }
     const rotation = caught ? Math.sin(t * 8) * .09 : Math.sin(t * .8 + n.phase) * .08;
     ctx.rotate(rotation);
+    if (n.type === 'rescue') {
+      ctx.strokeStyle = '#ffb79d'; ctx.lineWidth = 9; ctx.beginPath(); ctx.ellipse(0, n.r * .4, n.r * 1.18, n.r * .68, 0, 0, Math.PI * 2); ctx.stroke();
+      text('SOS', 0, -n.r * 1.25, 13, '#ffd2a8', 'center', 700);
+    }
+    const wanted = engine.config.order && engine.config.order[engine.orderIndex] === n.type || engine.config.need && (engine.config.need[n.type] || 0) > (engine.counts[n.type] || 0);
+    if (wanted && !caught) { ctx.strokeStyle = '#c2edbe70'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 6]); ctx.beginPath(); ctx.arc(0, 0, n.r * 1.34, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
     if (n.type === 'rare' || n.type === 'king') {
       const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, n.r * 1.65); glow.addColorStop(0, '#e3e8704d'); glow.addColorStop(1, '#e3e87000');
       ctx.fillStyle = glow; ctx.fillRect(-n.r * 1.8, -n.r * 1.8, n.r * 3.6, n.r * 3.6);
@@ -293,9 +327,15 @@
     else { ellipse(0, 0, n.r * .7, n.r, '#94bd47'); ellipse(-n.r * .3, -n.r * .2, 4, 5, '#173f32'); ellipse(n.r * .3, -n.r * .2, 4, 5, '#173f32'); ellipse(0, n.r * .4, n.r * .25, n.r * .15, '#d8d878'); }
     ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
     if (n.type === 'king') {
-      path([[-38, -n.r * .88], [-43, -n.r * 1.25], [-18, -n.r * 1.12], [0, -n.r * 1.45], [18, -n.r * 1.12], [43, -n.r * 1.25], [38, -n.r * .88]], '#ead58a', '#b9a35c', 2);
+      if (!engine.bossHits) path([[-38, -n.r * .88], [-43, -n.r * 1.25], [-18, -n.r * 1.12], [0, -n.r * 1.45], [18, -n.r * 1.12], [43, -n.r * 1.25], [38, -n.r * .88]], '#ead58a', '#b9a35c', 2);
       ellipse(0, -n.r * 1.07, 4, 5, '#799863');
+      if (!caught) {
+        ctx.strokeStyle = engine.bossVulnerable() ? '#bcf3ad' : '#98c5ed'; ctx.lineWidth = engine.bossVulnerable() ? 3 : 6;
+        ctx.setLineDash(engine.bossVulnerable() ? [8, 6] : []); ctx.beginPath(); ctx.arc(0, 0, n.r * 1.4, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+        text(engine.bossVulnerable() ? engine.bossHits ? '现在捕捉！' : '命中破冠' : engine.bossHits ? '冲刺中' : '护盾 ' + Math.min(2, engine.counts.rare || 0) + '/2', 0, -n.r * 1.65, 16, '#e7f9cb', 'center', 700);
+      }
     }
+    if (n.type === 'courier') { roundRect(n.r * .25, n.r * .3, 30, 25, 3, '#cfb17d', '#f1dc9c'); text('↗', n.r * .25 + 15, n.r * .3 + 18, 18, '#526244', 'center', 700); }
     if (n.type === 'rare') { text('✦', -n.r * 1.03, -n.r * .7, 14, '#edf5a9'); text('✧', n.r * .95, n.r * .25, 11, '#edf5a9'); }
     ctx.restore();
     if (!caught) {
@@ -317,12 +357,43 @@
     if (h.caught) drawTarget(h.caught, t, true);
     if (engine.status === 'playing' && h.phase === 'swing') {
       ctx.save(); ctx.globalAlpha = .27; ctx.setLineDash([3, 10]); ctx.strokeStyle = '#e7edbd'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(h.x + Math.sin(h.angle) * 30, h.y + Math.cos(h.angle) * 30); ctx.lineTo(h.x + Math.sin(h.angle) * 105, h.y + Math.cos(h.angle) * 105); ctx.stroke(); ctx.restore();
+      ctx.beginPath(); ctx.moveTo(h.x, h.y);
+      for (const point of engine.aimPath().slice(0, engine.config.current ? 32 : 9)) ctx.lineTo(point.x, point.y);
+      ctx.stroke(); ctx.restore();
+    }
+  }
+  function drawMechanics(t) {
+    if (engine.config.current) {
+      const direction = engine.currentForce() >= 0 ? 1 : -1;
+      ctx.save(); ctx.globalAlpha = engine.frozen ? .08 : .23; ctx.strokeStyle = '#bef0e4'; ctx.lineWidth = 2;
+      for (let row = 0; row < 4; row++) for (let i = 0; i < 6; i++) {
+        const x = 65 + ((i * 210 + direction * engine.worldTime * 45) % 1080 + 1080) % 1080, y = 300 + row * 80;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + direction * 40, y); ctx.lineTo(x + direction * 29, y - 6); ctx.moveTo(x + direction * 40, y); ctx.lineTo(x + direction * 29, y + 6); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    for (const g of engine.gates) {
+      ctx.save(); ctx.strokeStyle = g.open ? '#a3ebbd' : '#e3a197'; ctx.lineWidth = g.open ? 2 : 11;
+      ctx.setLineDash(g.open ? [10, 9] : []); ctx.beginPath(); ctx.moveTo(g.x, g.y); ctx.lineTo(g.x + g.w, g.y); ctx.stroke(); ctx.setLineDash([]);
+      if (!g.open) { ctx.strokeStyle = '#614f51'; ctx.lineWidth = 3; for (let x = g.x + 6; x < g.x + g.w; x += 25) { ctx.beginPath(); ctx.moveTo(x, g.y - 8); ctx.lineTo(x + 10, g.y + 8); ctx.stroke(); } }
+      roundRect(g.x + g.w / 2 - 61, g.y - 33, 122, 22, 10, '#173f49dd');
+      text((g.open ? '通行 ' : '关闭 ') + Math.ceil(g.remaining) + ' 秒', g.x + g.w / 2, g.y - 17, 13, g.open ? '#c5f6c9' : '#ffc2af'); ctx.restore();
+    }
+    for (const j of engine.jellies) {
+      ctx.save(); ctx.translate(j.x, j.y);
+      ctx.shadowColor = j.charged ? '#ffc0cc' : '#9ac6df'; ctx.shadowBlur = j.charged ? 20 : 0;
+      ctx.fillStyle = j.charged ? '#d895ac' : '#648da1'; ctx.beginPath(); ctx.arc(0, 2, j.r, Math.PI, 0); ctx.quadraticCurveTo(0, 22, -j.r, 2); ctx.fill();
+      ctx.shadowBlur = 0; ctx.strokeStyle = j.charged ? '#f6bdd2' : '#91b7c7'; ctx.lineWidth = 2.5;
+      for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(i * 15, 6); ctx.bezierCurveTo(i * 15 + Math.sin(t * 2) * 9, 20, i * 15 - 10, 34, i * 15 + 2, 42); ctx.stroke(); }
+      text(j.charged ? 'ϟ' : '·', 0, -2, 26, '#fff5e1', 'center', 700);
+      text(j.charged ? '通电 −4秒' : '可以穿过', 0, -43, 12, j.charged ? '#ffc0cd' : '#bce9f4'); ctx.restore();
     }
   }
   function draw(t, dt) {
     background(t);
+    if (engine.config.night && !engine.illuminated) { ctx.fillStyle = '#080f292e'; ctx.fillRect(0, 160, W, H - 160); }
     for (const n of engine.targets) if (n.active && !n.caught) drawTarget(n, t);
+    drawMechanics(t);
     drawHook(t);
     for (const f of fx) {
       f.life -= dt; f.y += (f.vy || 0) * dt; f.x += (f.vx || 0) * dt;
@@ -337,7 +408,7 @@
       roundRect(515, 18, 170, 29, 14, '#d3f2e2aa'); text('❄ 时间冻结 ' + Math.ceil(engine.frozen) + 's', 600, 38, 12, '#35686c', 'center', 600);
     }
     if (engine.status === 'playing' && engine.elapsed < 6 && engine.hook.phase === 'swing') {
-      roundRect(450, 211, 300, 31, 15, '#163f3ba6'); text('看准方向，点击水面或放钩按钮', 600, 232, 12, '#e0ebc5');
+      roundRect(450, 211, 300, 31, 15, '#163f3ba6'); text(engine.config.mode + ' · 看上方委托再放钩', 600, 232, 12, '#e0ebc5');
     }
   }
   function frame(now) {
