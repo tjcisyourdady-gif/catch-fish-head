@@ -14,7 +14,7 @@
     lib.seen = [...seen];
     try { localStorage.setItem(KEY, JSON.stringify(lib)); storageOkay = true; } catch (_) { storageOkay = false; }
     $('saveStatus').textContent = storageOkay ? '自动保存于此设备' : '此浏览器暂时无法保存，请保持页面打开';
-    $('endingCount').textContent = lib.endings.length + '/3';
+    $('endingCount').textContent = lib.endings.length + '/' + Object.keys(story.endings).length;
     $('continueGame').disabled = !lib.auto;
   }
   function saveAuto() { if (state) { lib.auto = copy(state); lib.lastName = state.name; } persist(); }
@@ -29,7 +29,9 @@
   $('closeModal').addEventListener('click', closeModal);
   modal.addEventListener('click', event => { if (event.target === modal) { const b = modal.getBoundingClientRect(); if (event.clientX < b.left || event.clientX > b.right || event.clientY < b.top || event.clientY > b.bottom) closeModal(); } });
   function setScene(node) {
+    const changed=$('novel').dataset.scene!==node.scene;
     $('novel').dataset.scene = node.scene;
+    if(changed&&!skipping&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)$('backdrop').animate([{opacity:.35},{opacity:1}],{duration:650,easing:'ease-out'});
     $('sceneTime').textContent = story.days[(node.chapter || 1) - 1];
     $('cast').className = 'cast' + (node.actor === 'all' ? ' all' : node.actor === 'fish' ? ' fish' : '');
     for (const actor of ['qing','pao','lan']) {
@@ -43,7 +45,7 @@
     $('novel').dataset.view = 'title'; $('titleScreen').hidden = false; $('readingScreen').hidden = true; $('endingScreen').hidden = true;
     setScene({ scene: 'harbor', actor: 'qing', human: {}, chapter: 1 }); $('sceneTime').textContent = 'THE LAST SEVEN DAYS'; persist();
   }
-  function markSeen() { if (state && !seen.has(state.node)) { seen.add(state.node); persist(); } }
+  function markSeen() { if (state && !seen.has(core.readKey(state))) { seen.add(core.readKey(state)); persist(); } }
   function scheduleNext() {
     clearTimeout(flowTimer);
     if (!state || view !== 'reading' || modal.open || document.hidden) return;
@@ -52,7 +54,7 @@
       if (!seenOnEntry) { skipping = false; controls(); toast('已到未读内容，跳过已停止'); return; }
       flowTimer = setTimeout(next, 140);
     } else if (auto) {
-      const total = Math.max(2000, fullText.length * 125 + 700);
+      const total = core.autoDuration(fullText);
       flowTimer = setTimeout(next, Math.max(850, total - (performance.now() - enteredAt)));
     }
   }
@@ -68,15 +70,16 @@
     if (node.type === 'ending') { renderEnding(node); return; }
     if (node.type === 'choice') {
       stopFlow(); markSeen(); $('choiceTitle').textContent = node.text; $('choices').replaceChildren();
+      $('choiceKind').textContent = node.kind==='everyday'?'日常对话 · 不影响路线与结局':node.kind==='rejoin'?'新的路口 · 可以重新选择方向':node.kind==='ending'?'潮声之后 · 回应你们一路的选择':'此刻，由你决定';
       node.options.forEach((option, i) => {
         const b = button('', () => { if (core.step(state, i)) { if (node.id === 'c2' && state.flags.recording) toast('已留下「给明天的留言」'); render(); } });
         const strong = document.createElement('strong'), detail = document.createElement('small'); strong.textContent = String.fromCharCode(65 + i) + '  ' + option.label;
-        detail.textContent = core.canChoose(state, option) ? option.detail : '尚未录音 · 本次未在第四幕留下「给明天的留言」';
+        detail.textContent = core.canChoose(state, option) ? option.detail : option.lockedHint || '这一路还没有准备好这个选择';
         b.disabled = !core.canChoose(state, option); b.append(strong, detail); $('choices').append(b);
       });
       $('choiceTitle').setAttribute('tabindex','-1'); $('choiceTitle').focus({preventScroll:true}); return;
     }
-    fullText = node.text; seenOnEntry = seen.has(node.id);
+    fullText = core.lineText(state,node); seenOnEntry = seen.has(core.readKey(state));
     $('speaker').textContent = node.speaker === '你' ? state.name : node.speaker === '旁白' ? '青头湾 · 夜班日记' : node.speaker;
     $('readMark').textContent = seenOnEntry ? '已读' : '未读'; $('accessibleLine').textContent = fullText; $('dialogueText').textContent = '';
     $('advanceText').setAttribute('aria-label', '显示完整对白'); typing = true;
@@ -100,7 +103,7 @@
   function previous() { if (!state || modal.open) return; stopFlow(); if (core.back(state)) render(); }
   function newGame() {
     showModal('在青头湾，怎么称呼你？', container => {
-      container.append(paragraph('你是刚毕业、来做最后一周临时工的新人。三位同事都戴着绿色鱼头套。她们为什么不愿摘下？'));
+      container.append(paragraph('你是刚毕业、来做最后一周临时工的新人。三位同事都戴着绿色鱼头套。约 30 分钟走完一个结局；旧码头与旧记录两条路线可以重新汇合，关键决定会改变你们的明天。'));
       const form = document.createElement('form'), row = document.createElement('div'), label = document.createElement('label'), input = document.createElement('input'); row.className = 'form-row';
       label.textContent = '你的名字'; label.htmlFor = 'playerName'; input.id = 'playerName'; input.maxLength = 12; input.placeholder = '留空也可以，就叫“你”'; input.autocomplete = 'off'; input.value = lib.lastName === '你' ? '' : lib.lastName;
       row.append(label,input); form.append(row);
@@ -131,13 +134,13 @@
   function showHistory() {
     showModal('刚才的话，我都记得', container => {
       const list = document.createElement('div'); list.className = 'history-list';
-      const entries = [...(state?.history || []), ...(state ? [{ node: state.node }] : [])].slice(-160);
+      const entries = [...(state?.history || []), ...(state ? [{ node: state.node, reply:copy(state.reply) }] : [])].slice(-160);
       if (!entries.length) list.append(paragraph('故事还没有开始。'));
       for (const entry of entries) {
         const n = story.nodes[entry.node]; if (n.type === 'ending') continue;
         const article = document.createElement('article'), name = document.createElement('strong'), text = document.createElement('p');
         name.textContent = n.type === 'choice' ? '你的选择' : n.speaker === '你' ? state.name : n.speaker;
-        text.textContent = n.type === 'choice' ? entry.choice || n.text : n.text; if (n.type === 'choice') article.className = 'choice-log'; article.append(name,text); list.append(article);
+        text.textContent = n.type === 'choice' ? entry.choice || n.text : core.lineText(entry,n); if (n.type === 'choice') article.className = 'choice-log'; article.append(name,text); list.append(article);
       }
       container.append(list); setTimeout(() => list.scrollTop = list.scrollHeight, 0);
     });
@@ -148,19 +151,19 @@
     const id = node.ending === 'current' ? state.flags.ending || 'tomorrow' : node.ending, ending = story.endings[id];
     state.flags.ending = id; if (!lib.endings.includes(id)) lib.endings.push(id); markSeen(); saveAuto();
     $('endingNumber').textContent = 'ENDING ' + ending.number + ' / 已收录'; $('endingTitle').textContent = ending.title; $('endingPoem').textContent = ending.text;
-    $('bonusButton').hidden = id === 'fish' || node.id === 'finishBonus'; $('lastChoiceButton').hidden = !state.checkpoints.c3; $('secondChoiceButton').hidden = !state.checkpoints.c2;
+    $('bonusButton').hidden = !['tomorrow','together'].includes(id) || node.id === 'finishBonus'; $('lastChoiceButton').hidden = !state.checkpoints.c3; $('secondChoiceButton').hidden = !Object.keys(state.checkpoints).length;
   }
   function showGallery() {
     showModal('潮声之后 · 结局收藏', container => {
-      container.append(paragraph('已收录 ' + lib.endings.length + ' / 3 个结局。选择没有分数，只有不同的明天。'));
+      container.append(paragraph('已收录 ' + lib.endings.length + ' / ' + Object.keys(story.endings).length + ' 个结局。关键选择会影响结局；之前走开的路线，也有机会重新汇合。'));
       const grid = document.createElement('div'); grid.className = 'gallery-grid';
       Object.values(story.endings).forEach(ending => {
         const unlocked = lib.endings.includes(ending.id), card = document.createElement('article'), number = document.createElement('span'), title = document.createElement('h3'); card.className = 'gallery-card'; number.className = 'ending-idx'; number.textContent = ending.number; title.textContent = unlocked ? ending.title : '尚未抵达';
         card.append(number,title,paragraph(unlocked ? ending.text : ending.hint));
-        if (unlocked) card.append(button('重温这一段', () => { state = core.fresh(lib.lastName); state.node = ending.entry; state.flags.recording = ending.id === 'together'; state.flags.ending = ending.id; closeModal(); render(); startMusic(); })); grid.append(card);
+        if (unlocked) card.append(button('重温这一段', () => { state = core.fresh(lib.lastName); state.node = ending.entry; state.flags.recording = ending.id === 'together'; state.flags.shared = ending.id === 'together'; state.flags.agency=ending.id!=='apart'; state.flags.ending = ending.id; closeModal(); render(); startMusic(); })); grid.append(card);
       }); container.append(grid);
       const active = state || lib.auto;
-      if (active?.checkpoints.c2) container.append(button('从“录音 / 维修”选择继续', () => { if (!state) state = core.normalizeSession(lib.auto); jumpCheckpoint('c2'); }, 'soft'));
+      if (active&&Object.keys(active.checkpoints).length) container.append(button('查看本轮选择足迹',showRoutes,'soft'));
     });
   }
   function showChapters() {
@@ -170,11 +173,21 @@
       story.chapters.filter(c=>c.number<=6).forEach(chapter => {
         const index = active?.history.findIndex(h=>h.node===chapter.id) ?? -1, current = active?.node===chapter.id;
         const b = button('第 ' + chapter.number + ' 幕 · ' + chapter.title, () => {
-          state = core.normalizeSession(active); if (!current) { const old = state.history[index]; state.node = old.node; state.flags = copy(old.flags); state.history = state.history.slice(0,index); }
-          delete state.checkpoints.c3; if(chapter.number<=4) delete state.checkpoints.c2; if(chapter.number<=2) delete state.checkpoints.c1;
+          state = core.normalizeSession(active); if (!current) core.jumpHistory(state,index);
           closeModal(); render();
         }); b.disabled = index<0&&!current; list.append(b);
       }); container.append(list);
+    });
+  }
+  function showRoutes() {
+    showModal('走过的路口',container=>{
+      const active=state||lib.auto;
+      container.append(paragraph('只展示本轮已经做过的选择。回到某个路口，会恢复当时的记录和约定；此后的选择可以重新做。两段日常拌嘴只改变回应，不影响结局。'));
+      const list=document.createElement('div');list.className='progress-list';
+      const points=Object.values(active?.checkpoints||{}).sort((a,b)=>a.historyIndex-b.historyIndex);
+      for(const point of points){const node=story.nodes[point.node],entry=active.history[point.historyIndex];list.append(button((node.kind==='everyday'?'日常 · ':'路口 · ')+entry.choice,()=>{state=core.normalizeSession(active);jumpCheckpoint(point.node);}));}
+      if(!points.length)list.append(paragraph('还没有走到第一个选择，继续故事就会留下足迹。'));
+      container.append(list);
     });
   }
   function showSettings() {
@@ -188,7 +201,7 @@
   function menu() {
     showModal('暂时停靠', container => {
       const grid = document.createElement('div'); grid.className='menu-grid';
-      for (const [text,fn,disabled] of [['继续阅读',closeModal,false],['保存进度',()=>showSave('save'),!state],['读取存档',()=>showSave('load'),false],['对白回顾',showHistory,!state],['章节回看',showChapters,!state&&!lib.auto],['结局收藏',showGallery,false],['阅读设置',showSettings,false],['返回标题',()=>{closeModal();showTitle();},false]]) { const b=button(text,fn);b.disabled=disabled;grid.append(b); } container.append(grid);
+      for (const [text,fn,disabled] of [['继续阅读',closeModal,false],['保存进度',()=>showSave('save'),!state],['读取存档',()=>showSave('load'),false],['对白回顾',showHistory,!state],['章节回看',showChapters,!state&&!lib.auto],['选择足迹',showRoutes,!state&&!lib.auto],['结局收藏',showGallery,false],['阅读设置',showSettings,false],['返回标题',()=>{closeModal();showTitle();},false]]) { const b=button(text,fn);b.disabled=disabled;grid.append(b); } container.append(grid);
     });
   }
   function installInfo() {
@@ -207,9 +220,9 @@
   $('advanceText').addEventListener('click',next);$('backButton').addEventListener('click',previous);$('choiceBack').addEventListener('click',previous);$('historyButton').addEventListener('click',showHistory);
   $('saveButton').addEventListener('click',()=>showSave('save'));$('loadButton').addEventListener('click',()=>showSave('load'));
   $('autoButton').addEventListener('click',()=>{auto=!auto;skipping=false;controls();scheduleNext();});
-  $('skipButton').addEventListener('click',()=>{auto=false;skipping=!skipping;controls();if(skipping&&seen.has(state.node)){seenOnEntry=true;reveal();}else scheduleNext();});
+  $('skipButton').addEventListener('click',()=>{auto=false;skipping=!skipping;controls();if(skipping&&seen.has(core.readKey(state))){seenOnEntry=true;reveal();}else scheduleNext();});
   $('bonusButton').addEventListener('click',()=>{state.history.push({node:state.node,flags:copy(state.flags)});state.node=story.bonus;render();});
-  $('lastChoiceButton').addEventListener('click',()=>jumpCheckpoint('c3'));$('secondChoiceButton').addEventListener('click',()=>jumpCheckpoint('c2'));
+  $('lastChoiceButton').addEventListener('click',()=>jumpCheckpoint('c3'));$('secondChoiceButton').addEventListener('click',showRoutes);
   $('endingHomeButton').addEventListener('click',showTitle);$('endingGalleryButton').addEventListener('click',showGallery);$('installInfo').addEventListener('click',installInfo);
   document.addEventListener('keydown',event=>{if(event.ctrlKey||event.metaKey||event.altKey||event.repeat||['INPUT','SELECT','TEXTAREA'].includes(event.target.tagName))return;if(modal.open)return;if(event.code==='Escape'){event.preventDefault();menu();}else if(view==='reading'&&(event.code==='Space'||event.code==='ArrowRight')){event.preventDefault();next();}else if(view==='reading'&&event.code==='ArrowLeft'){event.preventDefault();previous();}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){stopFlow();stopMusic();}else if(lib.prefs.music)startMusic();});
