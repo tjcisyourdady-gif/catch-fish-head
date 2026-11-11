@@ -217,16 +217,22 @@
   async function offline() {
     if(location.protocol==='file:'){$('offlineStatus').textContent='本地离线版 · 进度保存在此浏览器';return;}
     if(!('serviceWorker'in navigator)||!window.isSecureContext)return;
-    try {
-      const registration=await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});
-      const pending=registration.installing||registration.waiting;
-      if(pending&&pending.state!=='activated')await new Promise((resolve,reject)=>{const limit=setTimeout(()=>reject(new Error('Worker update timeout')),60000);const changed=()=>{if(pending.state==='activated'){clearTimeout(limit);resolve();}else if(pending.state==='redundant'){clearTimeout(limit);reject(new Error('Worker update failed'));}};pending.addEventListener('statechange',changed);changed();});
-      await navigator.serviceWorker.ready;
+    let activeChannel=null, timeout=0, requestNumber=0;
+    const prepare=worker=>{
+      if(!worker)return;
+      const current=++requestNumber;clearTimeout(timeout);if(activeChannel)activeChannel.close();
       $('offlineStatus').textContent='正在准备离线阅读…';
-      const channel=new MessageChannel();const timeout=setTimeout(()=>{$('offlineStatus').textContent='在线可阅读 · 离线素材尚未全部就绪';channel.port1.close();},90000);
-      channel.port1.onmessage=event=>{clearTimeout(timeout);$('offlineStatus').textContent=event.data?.type==='GAL_READY'?'✓ 已可离线阅读 · 自动存档':'在线可阅读 · 离线素材尚未全部就绪';channel.port1.close();};
-      registration.active.postMessage({type:'CACHE_GAL'},[channel.port2]);
-    }catch(_){$('offlineStatus').textContent='在线可阅读 · 离线缓存暂不可用';}
+      const channel=new MessageChannel();activeChannel=channel.port1;
+      timeout=setTimeout(()=>{if(current===requestNumber)$('offlineStatus').textContent='离线素材尚未全部就绪，请联网重试';channel.port1.close();},90000);
+      channel.port1.onmessage=event=>{if(current!==requestNumber)return;clearTimeout(timeout);$('offlineStatus').textContent=event.data?.type==='GAL_READY'?'✓ 已可离线阅读 · 自动存档':'离线素材尚未全部就绪，请联网重试';channel.port1.close();};
+      worker.postMessage({type:'CACHE_GAL'},[channel.port2]);
+    };
+    navigator.serviceWorker.addEventListener('controllerchange',()=>prepare(navigator.serviceWorker.controller));
+    try {
+      await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.ready;
+      prepare(navigator.serviceWorker.controller||registration.active);
+    }catch(_){if(navigator.serviceWorker.controller)prepare(navigator.serviceWorker.controller);else $('offlineStatus').textContent='当前未能准备离线阅读';}
   }
   showTitle();if(!storageOkay)toast('此浏览器暂时无法保存，请保持页面打开');window.addEventListener('load',offline,{once:true});
 })();
