@@ -1,9 +1,10 @@
 'use strict';
 const CACHE_PREFIX = 'fish-head:' + new URL('./', self.location.href).pathname + ':';
-const CACHE = CACHE_PREFIX + 'v2-challenges';
+const CACHE = CACHE_PREFIX + 'v3-galgame-20261111';
 const FILES = ['./', './index.html', './style.css', './mobile.css', './engine.js', './game.js', './pwa.js', './manifest.webmanifest', './fish-head.png', './fish-head.ico', './icon-192.png', './icon-512.png', './icon-maskable.png', './apple-touch-icon.png'];
 const ROOT = new URL('./', self.location.href);
-const knownPaths = new Set(FILES.map(file => new URL(file, ROOT).pathname));
+const GAL_FILES = ['./galgame.html','./galgame.css','./galgame.js','./galgame-core.js','./galgame-story.js','./galgame.webmanifest','./gal-harbor.png','./gal-aquarium.png','./gal-roof.png','./gal-masked.png','./gal-human.png','./gal-fish.png','./gal-icon.png'];
+const knownPaths = new Set([...FILES,...GAL_FILES].map(file => new URL(file, ROOT).pathname));
 self.addEventListener('install', event => {
   // Fetch the complete release before activation. Existing JS keeps running;
   // the new cache takes effect on the player's next navigation, without reload.
@@ -27,12 +28,23 @@ self.addEventListener('fetch', event => {
   })());
 });
 self.addEventListener('message', event => {
-  if (event.data?.type !== 'CHECK_OFFLINE') return;
+  if (!['CHECK_OFFLINE','CACHE_GAL'].includes(event.data?.type)) return;
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
+    if(event.data.type === 'CACHE_GAL') {
+      try {
+        const missing = [];
+        for(const file of GAL_FILES) if(!await cache.match(new URL(file,ROOT).href)) missing.push(new Request(new URL(file,ROOT).href,{cache:'reload'}));
+        if(missing.length) await cache.addAll(missing);
+        event.ports[0]?.postMessage({type:'GAL_READY'});
+      } catch(_) { event.ports[0]?.postMessage({type:'GAL_INCOMPLETE'}); }
+      return;
+    }
     const matches = await Promise.all(FILES.map(file => cache.match(new URL(file, ROOT).href)));
     event.ports[0]?.postMessage({ type: matches.every(Boolean) ? 'OFFLINE_READY' : 'OFFLINE_INCOMPLETE' });
   })());
 });
+
+
 
 

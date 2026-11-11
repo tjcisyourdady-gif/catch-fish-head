@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#153f49"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="鱼头小姐">
+  <meta name="description" content="七天，三声潮响，一只不肯摘下的绿色鱼头。约十分钟的恋爱文字冒险，三个完整结局。">
+  <title>鱼头小姐，今天也不摘头套</title>
+  <link rel="icon" href="gal-icon.png"><link rel="apple-touch-icon" href="gal-icon.png"><link rel="manifest" href="galgame.webmanifest">
+  <link rel="stylesheet" href="galgame.css">
+  <link rel="preload" href="gal-harbor.png" as="image"><link rel="preload" href="gal-masked.png" as="image">
+</head>
+<body>
+<main id="novel" data-view="title" data-scene="harbor">
+  <div id="backdrop" class="backdrop" aria-hidden="true"></div><div class="lightwash" aria-hidden="true"></div><div class="grain" aria-hidden="true"></div>
+  <header class="topbar"><a class="wordmark" href="index.html" id="arcadeLink"><span>𓆝</span> 青头湾 <small>故事集</small></a><span id="sceneTime" class="scene-time">THE LAST SEVEN DAYS</span><div class="top-actions"><button id="musicButton" aria-label="开启音乐" aria-pressed="false">♫<span>音乐</span></button><button id="menuButton">菜单 <span>☰</span></button></div></header>
+  <div id="cast" class="cast" aria-hidden="true"><div class="actor actor-qing" data-person="qing"></div><div class="actor actor-pao" data-person="pao"></div><div class="actor actor-lan" data-person="lan"></div><div class="little-fish"></div></div>
+  <section id="titleScreen" class="title-screen">
+    <div class="title-copy"><p class="eyebrow">一部关于记得、告别与明天的短篇</p><h1>鱼头小姐，<br><em>今天也不摘头套</em><span class="title-star">✦</span></h1><p class="english-title">UNTIL THE TIDE REMEMBERS</p><p class="intro">她说，别替我摘。<br>所以你决定，先陪她走到第七天。</p><div class="title-buttons"><button class="primary" id="newGame">开始这七天 <span>↗</span></button><button class="soft" id="continueGame" disabled>继续故事</button></div><div class="title-links"><button id="titleGallery">结局收藏 <b id="endingCount">0/3</b></button><button id="titleLoad">读取存档</button></div><p class="duration">约 10 分钟 / 三次选择 / 三个结局</p></div>
+    <div class="title-caption"><span>小青 · 饲养员</span><p>“如果一屋子都是鱼头，<br>你还认得出我吗？”</p></div>
+    <footer class="title-footer"><span id="offlineStatus" role="status">点击就能读 · 进度保存在本机</span><button id="installInfo">添加到手机主屏幕 ↗</button></footer>
+  </section>
+  <section id="readingScreen" class="reading-screen" hidden>
+    <div class="chapter-strip"><span id="chapterLabel"></span><span id="memoryBadge" hidden>▣ 给明天的留言</span></div>
+    <section id="choicePanel" class="choice-panel" hidden aria-labelledby="choiceTitle"><span class="eyebrow">此刻，由你决定</span><h2 id="choiceTitle"></h2><div id="choices"></div><p>慢慢想，潮声会等你。<button id="choiceBack" class="plain">回到前一句</button></p></section>
+    <section class="dialogue" id="dialogue"><div class="speaker-line"><span id="speaker"></span><span id="readMark">未读</span></div><button id="advanceText" class="advance-text" aria-label="显示完整对白或继续下一句"><span id="dialogueText" aria-hidden="true"></span><span id="accessibleLine" class="sr-only"></span><span class="next-cue" aria-hidden="true">▸</span></button><div class="reading-tools"><button id="backButton">上一句</button><button id="historyButton">回顾</button><span class="tools-spacer"></span><button id="autoButton" aria-pressed="false">自动</button><button id="skipButton" aria-pressed="false">跳过已读</button><button id="saveButton">存档</button><button id="loadButton">读档</button></div></section>
+    <div class="reading-footer"><span id="saveStatus" role="status">自动保存于此设备</span><span>点击对白继续 · 空格 / →</span></div>
+  </section>
+  <section id="endingScreen" class="ending-screen" hidden><div class="ending-card"><span id="endingNumber" class="eyebrow"></span><h2 id="endingTitle"></h2><p id="endingPoem"></p><span class="ending-rule">✦</span><div class="ending-actions"><button id="bonusButton" class="primary">看看群聊彩蛋 ↗</button><button id="lastChoiceButton" class="soft">回到最后一次选择</button><button id="secondChoiceButton" class="soft">回到录音 / 维修选择</button><button id="endingGalleryButton" class="plain">结局收藏</button><button id="endingHomeButton" class="plain">返回标题</button></div><p class="ending-note">已收录到结局收藏 · 你可以留在这一刻，也可以看看另一个明天。</p></div></section>
+  <div id="toast" class="toast" role="status" hidden></div>
+</main>
+<dialog id="modal" aria-labelledby="modalHeading"><div class="modal-top"><h2 id="modalHeading"></h2><button id="closeModal" aria-label="关闭">×</button></div><div id="modalContent"></div></dialog>
+<script src="galgame-story.js"></script><script src="galgame-core.js"></script><script src="galgame.js"></script>
+</body></html>
