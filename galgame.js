@@ -14,7 +14,6 @@
     lib.seen = [...seen];
     try { localStorage.setItem(KEY, JSON.stringify(lib)); storageOkay = true; } catch (_) { storageOkay = false; }
     $('saveStatus').textContent = storageOkay ? '自动保存于此设备' : '此浏览器暂时无法保存，请保持页面打开';
-    $('endingCount').textContent = lib.endings.length + '/' + Object.keys(story.endings).length;
     $('continueGame').disabled = !lib.auto;
   }
   function saveAuto() { if (state) { lib.auto = copy(state); lib.lastName = state.name; } persist(); }
@@ -150,17 +149,19 @@
     stopFlow(); typing = false;
     const id = node.ending === 'current' ? state.flags.ending || 'tomorrow' : node.ending, ending = story.endings[id];
     state.flags.ending = id; if (!lib.endings.includes(id)) lib.endings.push(id); markSeen(); saveAuto();
-    $('endingNumber').textContent = 'ENDING ' + ending.number + ' / 已收录'; $('endingTitle').textContent = ending.title; $('endingPoem').textContent = ending.text;
+    $('endingNumber').textContent = '潮声之后 · 已收录'; $('endingTitle').textContent = ending.title; $('endingPoem').textContent = ending.text;
     $('bonusButton').hidden = !['tomorrow','together'].includes(id) || node.id === 'finishBonus'; $('lastChoiceButton').hidden = !state.checkpoints.c3; $('secondChoiceButton').hidden = !Object.keys(state.checkpoints).length;
   }
   function showGallery() {
     showModal('潮声之后 · 结局收藏', container => {
-      container.append(paragraph('已收录 ' + lib.endings.length + ' / ' + Object.keys(story.endings).length + ' 个结局。关键选择会影响结局；之前走开的路线，也有机会重新汇合。'));
+      container.append(paragraph('已经抵达的结局会保存在这里。其他的明天，留给你自己发现。'));
       const grid = document.createElement('div'); grid.className = 'gallery-grid';
-      Object.values(story.endings).forEach(ending => {
-        const unlocked = lib.endings.includes(ending.id), card = document.createElement('article'), number = document.createElement('span'), title = document.createElement('h3'); card.className = 'gallery-card'; number.className = 'ending-idx'; number.textContent = ending.number; title.textContent = unlocked ? ending.title : '尚未抵达';
-        card.append(number,title,paragraph(unlocked ? ending.text : ending.hint));
-        if (unlocked) card.append(button('重温这一段', () => { state = core.fresh(lib.lastName); state.node = ending.entry; state.flags.recording = ending.id === 'together'; state.flags.shared = ending.id === 'together'; state.flags.agency=ending.id!=='apart'; state.flags.ending = ending.id; closeModal(); render(); startMusic(); })); grid.append(card);
+      const collected=Object.values(story.endings).filter(ending=>lib.endings.includes(ending.id));
+      if(!collected.length)container.append(paragraph('这里还没有留下回忆。先陪她走过这七天吧。'));
+      collected.forEach(ending => {
+        const card = document.createElement('article'), ornament = document.createElement('span'), title = document.createElement('h3'); card.className = 'gallery-card'; ornament.className = 'ending-idx'; ornament.textContent = '✦'; ornament.setAttribute('aria-hidden','true'); title.textContent = ending.title;
+        card.append(ornament,title,paragraph(ending.text));
+        card.append(button('重温这一段', () => { state = core.fresh(lib.lastName); state.node = ending.entry; state.flags.recording = ending.id === 'together'; state.flags.shared = ending.id === 'together'; state.flags.agency=ending.id!=='apart'; state.flags.ending = ending.id; closeModal(); render(); startMusic(); })); grid.append(card);
       }); container.append(grid);
       const active = state || lib.auto;
       if (active&&Object.keys(active.checkpoints).length) container.append(button('查看本轮选择足迹',showRoutes,'soft'));

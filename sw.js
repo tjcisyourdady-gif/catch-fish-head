@@ -1,6 +1,6 @@
 'use strict';
 const CACHE_PREFIX = 'fish-head:' + new URL('./', self.location.href).pathname + ':';
-const CACHE = CACHE_PREFIX + 'v5-novel-30min';
+const CACHE = CACHE_PREFIX + 'v5-novel-unrevealed';
 const FILES = ['./', './index.html', './catch.html', './hub.css', './hub.js', './gal-masked.png', './style.css', './mobile.css', './engine.js', './game.js', './pwa.js', './manifest.webmanifest', './fish-head.png', './fish-head.ico', './icon-192.png', './icon-512.png', './icon-maskable.png', './apple-touch-icon.png'];
 const ROOT = new URL('./', self.location.href);
 const GAL_FILES = ['./galgame.html','./galgame.css','./galgame.js','./galgame-core.js','./galgame-story.js','./galgame.webmanifest','./gal-harbor.png','./gal-aquarium.png','./gal-roof.png','./gal-masked.png','./gal-human.png','./gal-fish.png','./gal-icon.png'];
